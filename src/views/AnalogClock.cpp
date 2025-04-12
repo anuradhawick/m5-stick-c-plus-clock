@@ -26,7 +26,7 @@ AnalogClock::AnalogClock()
     origin_y = M5.Lcd.height() / 2;
 
     M5.Rtc.GetTime(&RTC_TimeStruct);
-    M5.Rtc.GetData(&RTC_DateStruct);
+    M5.Rtc.GetDate(&RTC_DateStruct);
 
     render_batt_power();
     render_clock_face();
@@ -135,7 +135,7 @@ void AnalogClock::render_clock_face()
 void AnalogClock::render()
 {
     M5.Rtc.GetTime(&RTC_TimeStruct);
-    M5.Rtc.GetData(&RTC_DateStruct);
+    M5.Rtc.GetDate(&RTC_DateStruct);
 
     // update batt if its changed
     if (TASKS::get_batt_percentage() != bat_cache)

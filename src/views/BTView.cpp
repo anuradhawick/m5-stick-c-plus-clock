@@ -5,33 +5,20 @@
 #include "animations/loader.h"
 
 static const char *TAG = "BT_VIEW";
-static BluetoothSerial *btSerial = NULL;
+BluetoothSerial *BTView::btSerial = nullptr;
+BTView *BTView::instance = nullptr;
 
-static void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+void BTView::static_bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-    if (event == ESP_SPP_SRV_OPEN_EVT)
+    if (BTView::instance)
     {
-        ESP_LOGD(TAG, "Client Connected");
-        String text = "Send the option number..\
-        \n1. WiFi Options\
-        \n2. Set time\
-        \n3. Set date\
-        \n";
-
-        for (size_t i = 0; i < text.length(); i++)
-        {
-            btSerial->write((uint8_t)text[i]);
-        }
-    }
-
-    if (event == ESP_SPP_CLOSE_EVT)
-    {
-        ESP_LOGD(TAG, "Client disconnected");
+        BTView::instance->bt_callback(event, param);
     }
 }
 
 BTView::BTView()
 {
+    instance = this;
     M5.begin();
     M5.Lcd.setRotation(3);
     M5.Lcd.setSwapBytes(true);
@@ -51,7 +38,6 @@ BTView::BTView()
     loader_frame = 0;
 
     inited_time = millis();
-    bt_started = false;
 
     render_text();
     render_loader();
@@ -60,10 +46,10 @@ BTView::BTView()
 BTView::~BTView()
 {
     ESP_LOGD(TAG, "Destructor called");
-    if (bt_started)
+    if (bt_started > 0)
     {
-        delete btSerial;
-        btSerial = NULL;
+        delete BTView::btSerial;
+        BTView::btSerial = NULL;
     }
 
     disp_buffer->deleteSprite();
@@ -90,8 +76,18 @@ void BTView::render_loader()
 
 void BTView::render_text()
 {
-    if (bt_started)
+    switch (bt_started)
     {
+    case 0:
+        disp_buffer->fillRect(0, 0, 140, 135, BLACK);
+        disp_buffer->setCursor(0, 15);
+        disp_buffer->setTextFont(0);
+        disp_buffer->drawString("BT Loading", 10, 10, 4);
+        disp_buffer->drawString("Wait " + String(5 - (millis() - inited_time) / 1000) + "s", 10, 50, 2);
+        disp_buffer->drawString("to Continue", 10, 70, 2);
+        disp_buffer->pushSprite(0, 0);
+        break;
+    case 1:
         disp_buffer->fillRect(0, 0, 140, 135, BLACK);
         disp_buffer->setCursor(0, 15);
         disp_buffer->setTextFont(0);
@@ -100,16 +96,17 @@ void BTView::render_text()
         disp_buffer->drawString("BT Serial App", 10, 70, 2);
         disp_buffer->drawString("to Continue", 10, 90, 2);
         disp_buffer->pushSprite(0, 0);
-    }
-    else
-    {
+        break;
+    case 2:
         disp_buffer->fillRect(0, 0, 140, 135, BLACK);
         disp_buffer->setCursor(0, 15);
         disp_buffer->setTextFont(0);
-        disp_buffer->drawString("BT Loading", 10, 10, 4);
-        disp_buffer->drawString("Wait " + String(5 - (millis() - inited_time) / 1000) + "s", 10, 50, 2);
-        disp_buffer->drawString("to Continue", 10, 70, 2);
+        disp_buffer->drawString("BT Linked", 10, 10, 4);
+        disp_buffer->drawString("Device Connected", 10, 50, 2);
+        disp_buffer->drawString("Follow the Terminal", 10, 70, 2);
+        disp_buffer->drawString("Instructions", 10, 90, 2);
         disp_buffer->pushSprite(0, 0);
+        break;
     }
 }
 
@@ -127,57 +124,85 @@ void BTView::render()
         render_text();
     }
 
-    if (bt_started)
+    if (bt_started > 0)
     {
         bt_loop();
     }
     else if (!bt_started && inited_time + 5000 < millis())
     {
-        btSerial = new BluetoothSerial();
-        btSerial->register_callback(bt_callback);
-        btSerial->begin("M5Stick");
+        BTView::btSerial = new BluetoothSerial();
+        BTView::btSerial->register_callback(static_bt_callback);
+        BTView::btSerial->begin("M5Stick");
         ESP_LOGD(TAG, "BT Serial Started");
-        bt_started = true;
+        bt_started = 1;
+    }
+}
+
+void BTView::bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+{
+    this->main_menu = 0;
+    if (event == ESP_SPP_SRV_OPEN_EVT)
+    {
+        ESP_LOGD(TAG, "Client Connected");
+        String text = "Send the option number..\
+        \n1. WiFi Options\
+        \n2. Set time\
+        \n3. Set date\
+        \n4: About\
+        \n";
+
+        for (size_t i = 0; i < text.length(); i++)
+        {
+            BTView::btSerial->write((uint8_t)text[i]);
+        }
+        this->bt_started = 2;
+    }
+
+    if (event == ESP_SPP_CLOSE_EVT)
+    {
+        ESP_LOGD(TAG, "Client disconnected");
+        this->bt_started = 1;
     }
 }
 
 void BTView::bt_loop()
 {
-    if (btSerial->available())
+    if (BTView::btSerial->available())
     {
-        bt_incoming = btSerial->readString();
+        bt_incoming = BTView::btSerial->readString();
         bt_incoming.trim();
         ESP_LOGD(TAG, "Incoming from BT Serial - %s", bt_incoming.c_str());
 
         switch (main_menu)
         {
         case 0:
-            // select main menu
-            if (1 <= (uint8_t)bt_incoming.toInt() && (uint8_t)bt_incoming.toInt() <= 3)
+            // just reusing the variable
+            main_menu = (uint8_t)bt_incoming.toInt();
+            text = "";
+
+            switch (main_menu)
             {
-                main_menu = (uint8_t)bt_incoming.toInt();
-
-                switch (main_menu)
-                {
-                case 1:
-                    text = "Not implemented\n";
-                    break;
-                case 2:
-                    text = "Enter time as HH:MM\n";
-                    break;
-                case 3:
-                    text = "Enter date as DD/MM/YYYY/D, D=1 for Sunday\n";
-                    break;
-
-                default:
-                    break;
-                }
-
-                for (size_t i = 0; i < text.length(); i++)
-                {
-                    btSerial->write((uint8_t)text[i]);
-                }
+            case 1:
+                text = "Not implemented\n";
+                break;
+            case 2:
+                text = "Enter time as HH:MM\n";
+                break;
+            case 3:
+                text = "Enter date as DD/MM/YYYY/D, D=1 for Sunday\n";
+                break;
+            case 4:
+                text = "Created by:\n Anuradha Wickramarachchi\n anuradhawick.com\n hello@anuradhawick.com\n";
+                break;
+            default:
+                break;
             }
+
+            for (size_t i = 0; i < text.length(); i++)
+            {
+                BTView::btSerial->write((uint8_t)text[i]);
+            }
+
             break;
         case 1:
             break;
@@ -197,7 +222,7 @@ void BTView::bt_loop()
 
             for (size_t i = 0; i < text.length(); i++)
             {
-                btSerial->write((uint8_t)text[i]);
+                BTView::btSerial->write((uint8_t)text[i]);
             }
 
             break;
@@ -213,16 +238,17 @@ void BTView::bt_loop()
                      RTC_DateStruct.Year,
                      RTC_DateStruct.WeekDay);
 
-            M5.Rtc.SetData(&RTC_DateStruct);
+            M5.Rtc.SetDate(&RTC_DateStruct);
 
             text = "Date successfully updated\n";
 
             for (size_t i = 0; i < text.length(); i++)
             {
-                btSerial->write((uint8_t)text[i]);
+                BTView::btSerial->write((uint8_t)text[i]);
             }
 
             break;
+
         default:
             break;
         }

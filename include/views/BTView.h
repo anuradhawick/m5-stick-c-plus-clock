@@ -17,6 +17,8 @@ private:
     void bt_loop();
     void render_loader();
     void render_text();
+    void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
+    static void static_bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
 
     unsigned long loader_last_rendered;
     unsigned long text_last_rendered;
@@ -31,6 +33,8 @@ private:
     RTC_TimeTypeDef RTC_TimeStruct;
     RTC_DateTypeDef RTC_DateStruct;
 
-    bool bt_started;
+    uint8_t bt_started = 0; // 0 - not started, 1 - started, 2 - connected
     unsigned long inited_time;
+    static BTView *instance;
+    static BluetoothSerial *btSerial;
 };

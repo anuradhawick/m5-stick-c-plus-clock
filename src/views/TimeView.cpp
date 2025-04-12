@@ -36,7 +36,7 @@ TimeView::~TimeView()
 void TimeView::render()
 {
     M5.Rtc.GetTime(&RTC_TimeStruct);
-    M5.Rtc.GetData(&RTC_DateStruct);
+    M5.Rtc.GetDate(&RTC_DateStruct);
     disp_buffer->setCursor(0, 15);
     disp_buffer->setTextFont(0);
     disp_buffer->setFreeFont(&DSEG7_Classic_Regular_64);

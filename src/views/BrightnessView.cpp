@@ -2,8 +2,10 @@
 #include "views/View.h"
 #include "event.h"
 #include "views/BrightnessView.h"
+#include "data.h"
 
 static const char *TAG = "BRIGHTNESS_VIEW";
+extern Storage storage;
 
 BrightnessView::BrightnessView()
 {
@@ -11,7 +13,8 @@ BrightnessView::BrightnessView()
     M5.Lcd.setRotation(3);
     M5.Lcd.setSwapBytes(false);
 
-    brightness = M5.Axp.Read8bit(0x28) >> 4;
+    // I have reverse engineered this code from the AXP192.h header file
+    brightness = storage.get_brightness();
     rendering_brightness_value = (float)brightness;
     last_rendered = millis();
 
@@ -33,10 +36,10 @@ BrightnessView::BrightnessView()
                             4);
     disp_buffer->fillTriangle(0,
                               M5.Lcd.height() - 25,
-                              40 * (brightness - 6),
+                              2.4 * brightness,
                               M5.Lcd.height() - 25,
-                              40 * (brightness - 6),
-                              (double)M5.Lcd.height() - 25 - 40.0 * (double)(brightness - 6) * tan(PI / 10),
+                              2.4 * brightness,
+                              (double)M5.Lcd.height() - 25 - 2.4 * (double)brightness * tan(PI / 10),
                               WHITE);
     disp_buffer->pushSprite(0, 0);
 }
@@ -76,12 +79,15 @@ void BrightnessView::render()
                                 M5.Lcd.width() / 2 - M5.Lcd.textWidth(header_message, 4) / 2,
                                 5,
                                 4);
+        // screen is 240x135
+        // 10 block brightness is 2.4 pixels
+        // top right corner comes from tangent
         disp_buffer->fillTriangle(0,
                                   M5.Lcd.height() - 25,
-                                  40 * (rendering_brightness_value - 6),
+                                  2.4 * rendering_brightness_value,
                                   M5.Lcd.height() - 25,
-                                  40 * (rendering_brightness_value - 6),
-                                  (double)M5.Lcd.height() - 25 - 40.0 * (double)(rendering_brightness_value - 6) * tan(PI / 10),
+                                  2.4 * rendering_brightness_value,
+                                  (double)M5.Lcd.height() - 25 - 2.4 * (double)rendering_brightness_value * tan(PI / 10),
                                   WHITE);
         disp_buffer->pushSprite(0, 0);
         last_rendered = millis();
@@ -93,22 +99,24 @@ bool BrightnessView::receive_event(EVENTS::event event)
     switch (event)
     {
     case EVENTS::RESET_PRESSED:
-        brightness--;
+        brightness -= 10;
 
-        if (brightness < 7)
+        if (brightness < 10)
         {
-            brightness = 7;
+            brightness = 10;
         }
         M5.Axp.ScreenBreath(brightness);
+        storage.set_brightness(brightness);
         return true;
     case EVENTS::POWER_PRESSED:
-        brightness++;
+        brightness += 10;
 
-        if (brightness > 12)
+        if (brightness > 100)
         {
-            brightness = 12;
+            brightness = 100;
         }
         M5.Axp.ScreenBreath(brightness);
+        storage.set_brightness(brightness);
         return true;
     default:
         break;
