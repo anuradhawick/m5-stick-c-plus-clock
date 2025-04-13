@@ -15,7 +15,7 @@ BrightnessView::BrightnessView()
 
     // I have reverse engineered this code from the AXP192.h header file
     brightness = storage.get_brightness();
-    rendering_brightness_value = (float)brightness;
+    rendering_brightness_value = brightness;
     last_rendered = millis();
 
     disp_buffer = new TFT_eSprite(&M5.Lcd);
@@ -54,24 +54,6 @@ BrightnessView::~BrightnessView()
 
 void BrightnessView::render()
 {
-    if (abs(rendering_brightness_value - brightness) < 0.001)
-    {
-        rendering_brightness_value = (float)brightness;
-    }
-
-    if (rendering_brightness_value < brightness)
-    {
-        rendering_brightness_value += 0.005;
-    }
-    else if (rendering_brightness_value > brightness)
-    {
-        rendering_brightness_value -= 0.005;
-    }
-    else
-    {
-        return;
-    }
-
     if (last_rendered + 10 < millis() && rendering_brightness_value != brightness)
     {
         disp_buffer->fillRect(0, 0, 240, 135, BLACK);
@@ -84,13 +66,14 @@ void BrightnessView::render()
         // top right corner comes from tangent
         disp_buffer->fillTriangle(0,
                                   M5.Lcd.height() - 25,
-                                  2.4 * rendering_brightness_value,
+                                  2.4 * brightness,
                                   M5.Lcd.height() - 25,
-                                  2.4 * rendering_brightness_value,
-                                  (double)M5.Lcd.height() - 25 - 2.4 * (double)rendering_brightness_value * tan(PI / 10),
+                                  2.4 * brightness,
+                                  (double)M5.Lcd.height() - 25 - 2.4 * (double)brightness * tan(PI / 10),
                                   WHITE);
         disp_buffer->pushSprite(0, 0);
         last_rendered = millis();
+        rendering_brightness_value = brightness;
     }
 }
 

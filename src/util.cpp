@@ -1,9 +1,7 @@
 #include "util.h"
-#include "secrets.h"
 
 // WIFI Creds
 static const char *TAG = "WIFI";
-
 
 // Time
 RTC_TimeTypeDef TimeStruct;
@@ -11,44 +9,46 @@ const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 9 * 3600 + 1800; // ACST = UTC+9:30 (34200 sec)
 const int daylightOffset_sec = 0;
 
-bool connect_to_wifi()
+bool connect_to_wifi(String wifi_ssid, String wifi_pass)
 {
-    ESP_LOGI(TAG, "Connecting to WiFi...\n\tSSID: %s\n\tPassword: %s", WIFI_SSID, WIFI_PASS);
-    M5.begin();
-    M5.Lcd.setRotation(3);
-    M5.Lcd.setSwapBytes(false);
+    ESP_LOGI(TAG, "Connecting to WiFi...\n\tSSID: %s\n\tPassword: %s", wifi_ssid, wifi_pass);
 
     // try to connect to WiFi
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    M5.begin();
+    WiFi.begin(wifi_ssid, wifi_pass);
     int counter = 0;
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
-        M5.Lcd.print(".");
         counter++;
         if (counter > 20)
         {
-            M5.Lcd.println("\nTimeout!");
             return false;
         }
     }
-    M5.Lcd.println("\nConnected!");
-    M5.Lcd.print("IP: ");
-    M5.Lcd.println(WiFi.localIP());
-
     return true;
 }
+
+bool disconnect_wifi()
+{
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        WiFi.disconnect();
+        WiFi.mode(WIFI_OFF);
+        return true;
+    } else {
+        WiFi.mode(WIFI_OFF);
+    }
+    return false;
+}
+
 bool update_time_date()
 {
-    M5.begin();
-    M5.Lcd.setRotation(3);
-    M5.Lcd.setSwapBytes(false);
-
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     struct tm timeinfo;
+    
     if (!getLocalTime(&timeinfo))
     {
-        M5.Lcd.println("Failed to obtain NTP time");
         return false;
     }
     // Convert and set RTC time
@@ -67,14 +67,6 @@ bool update_time_date()
     M5.Rtc.SetTime(&timeStruct);
     M5.Rtc.SetDate(&dateStruct);
 
-    M5.Lcd.print("Time: ");
-    M5.Lcd.print(timeStruct.Hours);
-    M5.Lcd.print(":");
-    M5.Lcd.print(timeStruct.Minutes);
-    M5.Lcd.print(":");
-    M5.Lcd.print(timeStruct.Seconds);
-    M5.Lcd.print("\nDate: ");
-    M5.Lcd.print(dateStruct.Year);
     ESP_LOGI(TAG, "Year: %d Month: %d Day: %d", dateStruct.Year, dateStruct.Month, dateStruct.Date);
 
     return true;

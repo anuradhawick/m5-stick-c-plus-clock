@@ -3,6 +3,9 @@
 #include <M5StickCPlus.h>
 #include <BluetoothSerial.h>
 #include "View.h"
+#include "animations/loader.h"
+#include "util.h"
+#include "data.h"
 
 class BTView : public View
 {
@@ -11,13 +14,14 @@ public:
     ~BTView();
 
     void render();
-    bool receive_event(EVENTS::event event){ return false; };
+    bool receive_event(EVENTS::event event) { return false; };
 
 private:
     void bt_loop();
     void render_loader();
     void render_text();
     void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
+    void write_to_bt(const char *data);
     static void static_bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
 
     unsigned long loader_last_rendered;
@@ -37,4 +41,15 @@ private:
     unsigned long inited_time;
     static BTView *instance;
     static BluetoothSerial *btSerial;
+
+    // settings
+    String ssid = "";
+    String password = "";
+    String main_menu_text = "Send the option number..\
+        \n1. WiFi Options\
+        \n2. Set time\
+        \n3. Set date\
+        \n4: Toggle Beep\
+        \n5: About\
+        \n";
 };

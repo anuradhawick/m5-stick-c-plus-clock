@@ -1,8 +1,4 @@
-#include <M5StickCPlus.h>
-#include <BluetoothSerial.h>
-#include "views/View.h"
 #include "views/BTView.h"
-#include "animations/loader.h"
 
 static const char *TAG = "BT_VIEW";
 BluetoothSerial *BTView::btSerial = nullptr;
@@ -48,6 +44,7 @@ BTView::~BTView()
     ESP_LOGD(TAG, "Destructor called");
     if (bt_started > 0)
     {
+        BTView::btSerial->end();
         delete BTView::btSerial;
         BTView::btSerial = NULL;
     }
@@ -56,6 +53,14 @@ BTView::~BTView()
     delete disp_buffer;
 
     ESP_LOGD(TAG, "Destructor finished");
+}
+
+void BTView::write_to_bt(const char *data)
+{
+    if (bt_started > 0)
+    {
+        btSerial->write((uint8_t *)data, strlen(data));
+    }
 }
 
 void BTView::render_loader()
@@ -140,117 +145,128 @@ void BTView::render()
 
 void BTView::bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-    this->main_menu = 0;
     if (event == ESP_SPP_SRV_OPEN_EVT)
     {
         ESP_LOGD(TAG, "Client Connected");
-        String text = "Send the option number..\
-        \n1. WiFi Options\
-        \n2. Set time\
-        \n3. Set date\
-        \n4: About\
-        \n";
-
-        for (size_t i = 0; i < text.length(); i++)
-        {
-            BTView::btSerial->write((uint8_t)text[i]);
-        }
-        this->bt_started = 2;
+        write_to_bt(main_menu_text.c_str());
+        main_menu = 0;
+        bt_started = 2;
     }
 
     if (event == ESP_SPP_CLOSE_EVT)
     {
         ESP_LOGD(TAG, "Client disconnected");
-        this->bt_started = 1;
+        main_menu = 0;
+        bt_started = 1;
     }
 }
 
 void BTView::bt_loop()
 {
-    if (BTView::btSerial->available())
+    if (!BTView::btSerial->available())
     {
-        bt_incoming = BTView::btSerial->readString();
-        bt_incoming.trim();
-        ESP_LOGD(TAG, "Incoming from BT Serial - %s", bt_incoming.c_str());
+        return;
+    }
+
+    bt_incoming = BTView::btSerial->readString();
+    bt_incoming.trim();
+    ESP_LOGD(TAG, "Incoming from BT Serial - %s", bt_incoming.c_str());
+
+    switch (main_menu)
+    {
+    case 0:
+        // just reusing the variable
+        main_menu = (uint8_t)bt_incoming.toInt();
+        text = "";
 
         switch (main_menu)
         {
-        case 0:
-            // just reusing the variable
-            main_menu = (uint8_t)bt_incoming.toInt();
-            text = "";
-
-            switch (main_menu)
-            {
-            case 1:
-                text = "Not implemented\n";
-                break;
-            case 2:
-                text = "Enter time as HH:MM\n";
-                break;
-            case 3:
-                text = "Enter date as DD/MM/YYYY/D, D=1 for Sunday\n";
-                break;
-            case 4:
-                text = "Created by:\n Anuradha Wickramarachchi\n anuradhawick.com\n hello@anuradhawick.com\n";
-                break;
-            default:
-                break;
-            }
-
-            for (size_t i = 0; i < text.length(); i++)
-            {
-                BTView::btSerial->write((uint8_t)text[i]);
-            }
-
-            break;
         case 1:
+            text = "Enter WIFI SSID\n";
             break;
         case 2:
-            RTC_TimeStruct.Hours = (uint8_t)bt_incoming.substring(0, 2).toInt();
-            RTC_TimeStruct.Minutes = (uint8_t)bt_incoming.substring(3, 5).toInt();
-
-            ESP_LOGD(TAG, "Update time to %d:%d",
-                     RTC_TimeStruct.Hours,
-                     RTC_TimeStruct.Minutes,
-                     bt_incoming.substring(0, 2),
-                     bt_incoming.substring(3, 5));
-
-            M5.Rtc.SetTime(&RTC_TimeStruct);
-
-            text = "Time successfully updated\n";
-
-            for (size_t i = 0; i < text.length(); i++)
-            {
-                BTView::btSerial->write((uint8_t)text[i]);
-            }
-
+            text = "Enter time as HH:MM\n";
             break;
         case 3:
-            RTC_DateStruct.Date = (uint8_t)bt_incoming.substring(0, 2).toInt();
-            RTC_DateStruct.Month = (uint8_t)bt_incoming.substring(3, 5).toInt();
-            RTC_DateStruct.Year = (uint16_t)bt_incoming.substring(6, 10).toInt();
-            RTC_DateStruct.WeekDay = (uint16_t)bt_incoming.substring(11, 12).toInt() - 1;
-
-            ESP_LOGD(TAG, "Update date to %d/%d/%d/%d",
-                     RTC_DateStruct.Date,
-                     RTC_DateStruct.Month,
-                     RTC_DateStruct.Year,
-                     RTC_DateStruct.WeekDay);
-
-            M5.Rtc.SetDate(&RTC_DateStruct);
-
-            text = "Date successfully updated\n";
-
-            for (size_t i = 0; i < text.length(); i++)
-            {
-                BTView::btSerial->write((uint8_t)text[i]);
-            }
-
+            text = "Enter date as DD/MM/YYYY/D, D=1 for Sunday\n";
             break;
-
+        case 4:
+            storage.set_beep(!storage.get_beep());
+            if (storage.get_beep())
+            {
+                text = "Beep enabled\n";
+                M5.Beep.beep();
+            }
+            else
+            {
+                text = "Beep disabled\n";
+            }
+            break;
+        case 5:
+            text = "Created by:\n Anuradha Wickramarachchi\n anuradhawick.com\n hello@anuradhawick.com\n";
+            break;
         default:
             break;
         }
+        break;
+    case 1:
+        ESP_LOGD(TAG, "Update ssid or password");
+        if (ssid.length() == 0)
+        {
+            ssid = bt_incoming.c_str();
+            text = "SSID successfully updated\nNow enter the WIFI password\n";
+            ESP_LOGD(TAG, "Update ssid to \"%s\"", ssid.c_str());
+        }
+        else
+        {
+            password = bt_incoming.c_str();
+            text = "Password successfully updated\nProceed to WiFi screen to confirm functionality\n";
+            write_to_bt(text.c_str());
+            ESP_LOGD(TAG, "Update password to \"%s\"", password.c_str());
+            storage.set_wifi_ssid(ssid);
+            storage.set_wifi_password(password);
+            ssid = "";
+            password = "";
+            main_menu = 0;
+            text = main_menu_text;
+        }
+        break;
+    case 2:
+        RTC_TimeStruct.Hours = (uint8_t)bt_incoming.substring(0, 2).toInt();
+        RTC_TimeStruct.Minutes = (uint8_t)bt_incoming.substring(3, 5).toInt();
+
+        ESP_LOGD(TAG, "Update time to %d:%d",
+                 RTC_TimeStruct.Hours,
+                 RTC_TimeStruct.Minutes,
+                 bt_incoming.substring(0, 2),
+                 bt_incoming.substring(3, 5));
+
+        M5.Rtc.SetTime(&RTC_TimeStruct);
+
+        text = "Time successfully updated\n";
+
+        break;
+    case 3:
+        RTC_DateStruct.Date = (uint8_t)bt_incoming.substring(0, 2).toInt();
+        RTC_DateStruct.Month = (uint8_t)bt_incoming.substring(3, 5).toInt();
+        RTC_DateStruct.Year = (uint16_t)bt_incoming.substring(6, 10).toInt();
+        RTC_DateStruct.WeekDay = (uint16_t)bt_incoming.substring(11, 12).toInt() - 1;
+
+        ESP_LOGD(TAG, "Update date to %d/%d/%d/%d",
+                 RTC_DateStruct.Date,
+                 RTC_DateStruct.Month,
+                 RTC_DateStruct.Year,
+                 RTC_DateStruct.WeekDay);
+
+        M5.Rtc.SetDate(&RTC_DateStruct);
+
+        text = "Date successfully updated\n";
+
+        break;
+    default:
+        text = "Invalid option\n";
+        break;
     }
+
+    write_to_bt(text.c_str());
 }

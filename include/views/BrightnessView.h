@@ -17,7 +17,7 @@ public:
 private:
     TFT_eSprite *disp_buffer;
     uint8_t brightness;
-    float rendering_brightness_value;
+    uint8_t rendering_brightness_value;
     String header_message;
     unsigned long last_rendered;
 };
