@@ -15,13 +15,10 @@ static const char *TAG = "MAIN";
 
 View *active_view;
 uint8_t state = 1;
-
-TASKS::Dimmer dimmer;
-TASKS::IMUManager imumgr;
+unsigned long active_time;
 
 void event_loop(bool change_state = false);
 bool change_stage();
-void init_sequence();
 
 void setup()
 {
@@ -32,8 +29,8 @@ void setup()
     M5.Lcd.setSwapBytes(true);
     M5.Axp.ScreenBreath(storage.get_brightness());
 
-    // init_sequence();
-    active_view = new BrightnessView();
+    active_view = new AnalogClock();
+    active_time = millis();
 }
 
 void loop()
@@ -42,58 +39,53 @@ void loop()
     // render view
     active_view->render();
 
-    // // no dimming as long as in shake
-    // if (imumgr.is_moved())
-    // {
-    //     dimmer.recover();
-    //     active_time = millis();
-    // }
-
-    // // auto dimming timed
-    // if (active_time + 5000 < millis())
-    // {
-    //     dimmer.go_dim();
-    // }
-
-    // // auto screenoff timed
-    // if (active_time + 10000 < millis())
-    // {
-    //     dimmer.go_dark();
-    // }
+    // no dimming as long as in shake
+    if (storage.get_imu())
+    {
+        dimmer.tick();
+        
+        if (imumgr.is_moved()) {
+            dimmer.interrup();
+        }
+    }
+    else
+    {
+        dimmer.interrup();
+    }
 
     // capture events
     // Lower button
     if (M5.BtnB.wasReleased())
     {
         ESP_LOGD(TAG, "BtnB Pressed");
+        !dimmer.interrup() && active_view->receive_event(EVENTS::RESET_PRESSED);
         if (storage.get_beep())
         {
             M5.Beep.beep();
         }
-        active_view->receive_event(EVENTS::RESET_PRESSED);
     }
 
     // Home button
     if (M5.BtnA.wasReleased())
     {
         ESP_LOGD(TAG, "BtnA Pressed");
+        // if event not consumed - change page
+        !dimmer.interrup() && !active_view->receive_event(EVENTS::HOME_PRESSED) && change_stage();
         if (storage.get_beep())
         {
             M5.Beep.beep();
         }
-        // if event not consumed - change page
-        !active_view->receive_event(EVENTS::HOME_PRESSED) && change_stage();
     }
 
     // Button on Top
     if (M5.Axp.GetBtnPress() == 0x02)
     {
         ESP_LOGD(TAG, "Power Btn Pressed");
+        !dimmer.interrup() && active_view->receive_event(EVENTS::POWER_PRESSED);
         if (storage.get_beep())
         {
             M5.Beep.beep();
         }
-        active_view->receive_event(EVENTS::POWER_PRESSED);
     }
 }
 
@@ -132,52 +124,4 @@ bool change_stage()
     }
 
     return true;
-}
-
-void init_sequence()
-{
-    // showing progress
-    TFT_eSprite *disp_buffer = new TFT_eSprite(&M5.Lcd);
-
-    disp_buffer->setSwapBytes(true);
-    disp_buffer->createSprite(240, 135);
-    disp_buffer->fillRect(0, 0, 240, 135, BLACK);
-    disp_buffer->pushSprite(0, 0);
-
-    disp_buffer->setTextSize(1);
-    disp_buffer->setTextColor(TFT_WHITE, TFT_BLACK);
-
-    // attempting to connect to wifi
-    disp_buffer->fillRect(0, 0, 240, 135, BLACK);
-    disp_buffer->setCursor(0, 15);
-    disp_buffer->setTextFont(0);
-    disp_buffer->drawString("WIFI Linking", 10, 10, 4);
-    disp_buffer->pushSprite(0, 0);
-    delay(1000);
-
-    if (connect_to_wifi(storage.get_wifi_ssid(), storage.get_wifi_password()))
-    {
-        disp_buffer->fillRect(0, 0, 240, 135, BLACK);
-        disp_buffer->setCursor(0, 15);
-        disp_buffer->setTextFont(0);
-        disp_buffer->drawString("WIFI Connected", 10, 10, 4);
-        disp_buffer->drawString("Updating Time", 10, 50, 4);
-        disp_buffer->pushSprite(0, 0);
-        ESP_LOGI(TAG, "Connected to WiFi");
-        update_time_date();
-        delay(2000);
-    }
-    else
-    {
-        disp_buffer->fillRect(0, 0, 240, 135, BLACK);
-        disp_buffer->setCursor(0, 15);
-        disp_buffer->setTextFont(0);
-        disp_buffer->drawString("WIFI Failed", 10, 10, 4);
-        disp_buffer->drawString("Update Settings", 10, 50, 4);
-        disp_buffer->pushSprite(0, 0);
-        ESP_LOGE(TAG, "Failed to connect to WiFi");
-        delay(2000);
-    }
-
-    delete disp_buffer;
 }

@@ -23,7 +23,14 @@ private:
     unsigned long loader_last_rendered;
     unsigned long text_last_rendered;
     unsigned long inited_time;
-    uint8_t wifi_started = 0; // 0 - not started, 1 - connected, 2 - unable to connect
+    /* 
+     * 0 - not started
+     * 1 - connected
+     * 2 - unable to connect
+     * 3 - time udated
+     * 4 - unable to update time
+     */
+    uint8_t wifi_started = 0; 
 
     uint16_t loader_frame;
     TFT_eSprite *disp_buffer;

@@ -85,4 +85,43 @@ void Storage::set_beep(bool beep)
     ESP_LOGD(TAG, "Beep saved to preferences: %d", beep);
 }
 
+bool Storage::get_imu()
+{
+    bool imu_active = prefs.getBool("imu");
+    ESP_LOGD(TAG, "IMU read from preferences: %d", imu_active);
+    return imu_active;
+}
+
+void Storage::set_imu(bool imu_active)
+{
+    prefs.putBool("imu", imu_active);
+    ESP_LOGD(TAG, "IMU saved to preferences: %d", imu_active);
+}
+
+unsigned long Storage::get_sleep_delay()
+{
+    unsigned long sleep_delay = prefs.getULong("sleep_delay", 5000);
+    ESP_LOGD(TAG, "Sleep delay read from preferences: %lu", sleep_delay);
+    return sleep_delay;
+}
+
+void Storage::set_sleep_delay(unsigned long delay)
+{
+    prefs.putULong("sleep_delay", delay);
+    ESP_LOGD(TAG, "Sleep delay saved to preferences: %lu", delay);
+}
+
+unsigned long Storage::get_dim_delay()
+{
+    unsigned long dim_delay = prefs.getULong("dim_delay", 5000);
+    ESP_LOGD(TAG, "Dim delay read from preferences: %lu", dim_delay);
+    return dim_delay;
+}
+
+void Storage::set_dim_delay(unsigned long delay)
+{
+    prefs.putULong("dim_delay", delay);
+    ESP_LOGD(TAG, "Dim delay saved to preferences: %lu", delay);
+}
+
 Storage storage;

@@ -14,7 +14,7 @@ public:
     ~BTView();
 
     void render();
-    bool receive_event(EVENTS::event event) { return false; };
+    bool receive_event(EVENTS::event event);
 
 private:
     void bt_loop();
@@ -22,6 +22,7 @@ private:
     void render_text();
     void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
     void write_to_bt(const char *data);
+    String get_main_text();
     static void static_bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);
 
     unsigned long loader_last_rendered;
@@ -45,11 +46,4 @@ private:
     // settings
     String ssid = "";
     String password = "";
-    String main_menu_text = "Send the option number..\
-        \n1. WiFi Options\
-        \n2. Set time\
-        \n3. Set date\
-        \n4: Toggle Beep\
-        \n5: About\
-        \n";
 };

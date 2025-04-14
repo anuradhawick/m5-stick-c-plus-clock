@@ -22,6 +22,15 @@ public:
     bool get_beep();
     void set_beep(bool beep);
 
+    bool get_imu();
+    void set_imu(bool imu);
+
+    unsigned long get_sleep_delay();
+    void set_sleep_delay(unsigned long delay);
+
+    unsigned long get_dim_delay();
+    void set_dim_delay(unsigned long delay);
+
 private:
     bool started = false;
     Preferences prefs;

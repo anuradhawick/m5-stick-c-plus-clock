@@ -77,6 +77,7 @@ void WiFiView::render_text()
         disp_buffer->drawString("Linked", 10, 30, 4);
         disp_buffer->drawString("IP Address", 10, 70, 2);
         disp_buffer->drawString(ip_address, 10, 90, 2);
+        disp_buffer->drawString("Updating time", 10, 110, 2);
         disp_buffer->pushSprite(0, 0);
         break;
     case 2:
@@ -89,6 +90,26 @@ void WiFiView::render_text()
         disp_buffer->drawString("Reset SSID and", 10, 90, 2);
         disp_buffer->drawString("Password Again", 10, 110, 2);
         disp_buffer->pushSprite(0, 0);
+        break;
+    case 3:
+        disp_buffer->fillRect(0, 0, 140, 135, BLACK);
+        disp_buffer->setCursor(0, 15);
+        disp_buffer->setTextFont(0);
+        disp_buffer->drawString("WIFI", 10, 10, 4);
+        disp_buffer->drawString("Linked", 10, 30, 4);
+        disp_buffer->drawString("Time Updated", 10, 70, 2);
+        disp_buffer->pushSprite(0, 0);
+        break;
+    case 4:
+        disp_buffer->fillRect(0, 0, 140, 135, BLACK);
+        disp_buffer->setCursor(0, 15);
+        disp_buffer->setTextFont(0);
+        disp_buffer->drawString("WIFI", 10, 10, 4);
+        disp_buffer->drawString("Linked", 10, 30, 4);
+        disp_buffer->drawString("Failed to Update", 10, 70, 2);
+        disp_buffer->drawString("Time", 10, 90, 2);
+        disp_buffer->pushSprite(0, 0);
+    default:
         break;
     }
 }
@@ -113,11 +134,25 @@ void WiFiView::render()
         {
             ip_address = WiFi.localIP().toString();
             wifi_started = 1;
+            inited_time = millis();
         }
         else
         {
             ESP_LOGE(TAG, "Failed to connect to WiFi");
             wifi_started = 2;
+        }
+    }
+
+    else if (wifi_started == 1 && inited_time + 2000 < millis())
+    {
+        if (update_time_date())
+        {
+            wifi_started = 3;
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to update time");
+            wifi_started = 4;
         }
     }
 }

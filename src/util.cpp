@@ -33,10 +33,12 @@ bool disconnect_wifi()
 {
     if (WiFi.status() == WL_CONNECTED)
     {
-        WiFi.disconnect();
+        WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
         return true;
-    } else {
+    }
+    else
+    {
         WiFi.mode(WIFI_OFF);
     }
     return false;
@@ -46,7 +48,7 @@ bool update_time_date()
 {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     struct tm timeinfo;
-    
+
     if (!getLocalTime(&timeinfo))
     {
         return false;
@@ -70,4 +72,57 @@ bool update_time_date()
     ESP_LOGI(TAG, "Year: %d Month: %d Day: %d", dateStruct.Year, dateStruct.Month, dateStruct.Date);
 
     return true;
+}
+
+int8_t get_batt_percentage()
+{
+    float volt = M5.Axp.GetBatVoltage();
+
+    if (volt < 3.20)
+        return -1;
+    if (volt < 3.27)
+        return 0;
+    if (volt < 3.61)
+        return 5;
+    if (volt < 3.69)
+        return 10;
+    if (volt < 3.71)
+        return 15;
+    if (volt < 3.73)
+        return 20;
+    if (volt < 3.75)
+        return 25;
+    if (volt < 3.77)
+        return 30;
+    if (volt < 3.79)
+        return 35;
+    if (volt < 3.80)
+        return 40;
+    if (volt < 3.82)
+        return 45;
+    if (volt < 3.84)
+        return 50;
+    if (volt < 3.85)
+        return 55;
+    if (volt < 3.87)
+        return 60;
+    if (volt < 3.91)
+        return 65;
+    if (volt < 3.95)
+        return 70;
+    if (volt < 3.98)
+        return 75;
+    if (volt < 4.02)
+        return 80;
+    if (volt < 4.08)
+        return 85;
+    if (volt < 4.11)
+        return 90;
+    if (volt < 4.15)
+        return 95;
+    if (volt < 4.20)
+        return 100;
+    if (volt >= 4.20)
+        return 101;
+    return 0;
 }

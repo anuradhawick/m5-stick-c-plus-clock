@@ -72,7 +72,7 @@ void AnalogClock::render_date()
 
 void AnalogClock::render_batt_power()
 {
-    bat_cache = TASKS::get_batt_percentage();
+    bat_cache = get_batt_percentage();
     bat_power = String(bat_cache) + "%";
     ESP_LOGD(TAG, "Batt: %s", bat_power);
 
@@ -138,7 +138,7 @@ void AnalogClock::render()
     M5.Rtc.GetDate(&RTC_DateStruct);
 
     // update batt if its changed
-    if (TASKS::get_batt_percentage() != bat_cache)
+    if (get_batt_percentage() != bat_cache)
     {
         render_batt_power();
     }

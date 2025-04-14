@@ -10,12 +10,3 @@ The **M5StickC-Plus-SmartClock** project is designed for the M5StickC Plus, a co
 4. Click on the "Build" button to compile the project.
 5. To upload the firmware to the device, click on the "Upload" button.
 6. Use the "Monitor" button to view serial output from the device.
-
-## Secrets
-
-Add a `secrets.h` file to `include` directory.
-
-```cpp
-#define WIFI_SSID "SSID"
-#define WIFI_PASS "PASS"
-```

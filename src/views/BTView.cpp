@@ -44,15 +44,53 @@ BTView::~BTView()
     ESP_LOGD(TAG, "Destructor called");
     if (bt_started > 0)
     {
+        BTView::btSerial->disconnect();
         BTView::btSerial->end();
         delete BTView::btSerial;
-        BTView::btSerial = NULL;
+        BTView::btSerial = nullptr;
     }
 
     disp_buffer->deleteSprite();
     delete disp_buffer;
 
     ESP_LOGD(TAG, "Destructor finished");
+}
+
+bool BTView::receive_event(EVENTS::event event)
+{
+    if (event == EVENTS::HOME_PRESSED)
+    {
+        if (bt_started == 2)
+        {
+            write_to_bt("Please disconnect connection.\n");
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
+String BTView::get_main_text()
+{
+    String text = "";
+    text += "Send the option number..\
+    \n1. WiFi options\
+    \n2. Set time\
+    \n3. Set date\
+    \n4: Toggle beep (";
+    text += storage.get_beep()
+                ? "ON"
+                : "OFF";
+    text += ")\n5: Toogle dimming (";
+    text += storage.get_imu()
+                ? "ON"
+                : "OFF";
+    text += ")\n6: Set dimming delay (";
+    text += storage.get_dim_delay() / 1000;
+    text += ")\n7: Set sleep delay (";
+    text += storage.get_sleep_delay() / 1000;
+    text += ")\n8: About\n";
+    return text;
 }
 
 void BTView::write_to_bt(const char *data)
@@ -148,7 +186,7 @@ void BTView::bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     if (event == ESP_SPP_SRV_OPEN_EVT)
     {
         ESP_LOGD(TAG, "Client Connected");
-        write_to_bt(main_menu_text.c_str());
+        write_to_bt(get_main_text().c_str());
         main_menu = 0;
         bt_started = 2;
     }
@@ -196,13 +234,40 @@ void BTView::bt_loop()
             {
                 text = "Beep enabled\n";
                 M5.Beep.beep();
+                write_to_bt(text.c_str());
+                text = get_main_text();
             }
             else
             {
                 text = "Beep disabled\n";
+                write_to_bt(text.c_str());
+                text = get_main_text();
             }
+            main_menu = 0;
             break;
         case 5:
+            storage.set_imu(!storage.get_imu());
+            if (storage.get_imu())
+            {
+                text = "Auto dimming enabled\n";
+                write_to_bt(text.c_str());
+                text = get_main_text();
+            }
+            else
+            {
+                text = "Auto dimming disabled\n";
+                write_to_bt(text.c_str());
+                text = get_main_text();
+            }
+            main_menu = 0;
+            break;
+        case 6:
+            text = "Enter dimming delay in seconds\n";
+            break;
+        case 7:
+            text = "Enter sleep delay in seconds\n";
+            break;
+        case 8:
             text = "Created by:\n Anuradha Wickramarachchi\n anuradhawick.com\n hello@anuradhawick.com\n";
             break;
         default:
@@ -228,7 +293,7 @@ void BTView::bt_loop()
             ssid = "";
             password = "";
             main_menu = 0;
-            text = main_menu_text;
+            text = get_main_text();
         }
         break;
     case 2:
@@ -244,7 +309,8 @@ void BTView::bt_loop()
         M5.Rtc.SetTime(&RTC_TimeStruct);
 
         text = "Time successfully updated\n";
-
+        write_to_bt(text.c_str());
+        text = get_main_text();
         break;
     case 3:
         RTC_DateStruct.Date = (uint8_t)bt_incoming.substring(0, 2).toInt();
@@ -261,8 +327,35 @@ void BTView::bt_loop()
         M5.Rtc.SetDate(&RTC_DateStruct);
 
         text = "Date successfully updated\n";
-
+        write_to_bt(text.c_str());
+        text = get_main_text();
         break;
+    case 6:
+    {
+        long dim_delay = bt_incoming.toInt();
+        dim_delay = max(min(dim_delay, (long)60), (long)5);
+        storage.set_dim_delay(dim_delay * 1000);
+        text = "Dimming delay successfully updated to: ";
+        text += dim_delay;
+        text += "s\n";
+        main_menu = 0;
+        write_to_bt(text.c_str());
+        text = get_main_text();
+        break;
+    }
+    case 7:
+    {
+        long sleep_delay = bt_incoming.toInt();
+        sleep_delay = max(min(sleep_delay, (long)60), (long)5);
+        storage.set_sleep_delay(sleep_delay * 1000);
+        text = "Sleep delay successfully updated to: ";
+        text += sleep_delay;
+        text += "s\n";
+        main_menu = 0;
+        write_to_bt(text.c_str());
+        text = get_main_text();
+        break;
+    }
     default:
         text = "Invalid option\n";
         break;
